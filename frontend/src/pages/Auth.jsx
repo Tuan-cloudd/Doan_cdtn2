@@ -16,7 +16,7 @@ export function Login() {
   return <AuthFrame title="Chào mừng trở lại" subtitle="Đăng nhập để tiếp tục hành trình học tập."><form onSubmit={submit} className="space-y-4">
     {error && <p className="notice-error">{error}</p>}
     <label className="block"><span className="label">Email</span><input className="field" name="email" type="email" autoComplete="email" required placeholder="ban@email.com" /></label>
-    <label className="block"><span className="label">Mật khẩu</span><input className="field" name="password" type="password" autoComplete="current-password" required placeholder="Nhập mật khẩu" /></label>
+    <PasswordField label="Mật khẩu" name="password" autoComplete="current-password" required placeholder="Nhập mật khẩu" />
     <button className="button-primary w-full" disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
     <p className="pt-1 text-center text-sm text-muted">Chưa có tài khoản? <Link to="/register" className="font-bold text-brand-600">Đăng ký ngay</Link></p>
   </form></AuthFrame>;
@@ -38,11 +38,30 @@ export function Register() {
     {error && <p className="notice-error">{error}</p>}
     <label className="block"><span className="label">Họ và tên</span><input className="field" name="name" required maxLength="80" placeholder="Nguyễn Minh Anh" /></label>
     <label className="block"><span className="label">Email</span><input className="field" name="email" type="email" autoComplete="email" required placeholder="ban@email.com" /></label>
-    <label className="block"><span className="label">Mật khẩu</span><input className="field" name="password" type="password" autoComplete="new-password" minLength="8" required placeholder="Tối thiểu 8 ký tự" /></label>
-    <label className="block"><span className="label">Nhập lại mật khẩu</span><input className="field" name="confirmPassword" type="password" autoComplete="new-password" minLength="8" required placeholder="Nhập lại mật khẩu" /></label>
+    <PasswordField label="Mật khẩu" name="password" autoComplete="new-password" minLength="8" required placeholder="Tối thiểu 8 ký tự" />
+    <PasswordField label="Nhập lại mật khẩu" name="confirmPassword" autoComplete="new-password" minLength="8" required placeholder="Nhập lại mật khẩu" />
     <button className="button-primary w-full" disabled={busy}>{busy ? 'Đang tạo tài khoản…' : 'Tạo tài khoản'}</button>
     <p className="pt-1 text-center text-sm text-muted">Đã có tài khoản? <Link to="/login" className="font-bold text-brand-600">Đăng nhập</Link></p>
   </form></AuthFrame>;
+}
+
+function PasswordField({ label, name, ...inputProps }) {
+  const [visible, setVisible] = useState(false);
+  return <label className="block">
+    <span className="label">{label}</span>
+    <span className="relative block">
+      <input className="field pr-16" name={name} type={visible ? 'text' : 'password'} {...inputProps} />
+      <button
+        type="button"
+        className="absolute inset-y-0 right-3 my-auto h-8 text-xs font-bold text-brand-600 hover:text-brand-700"
+        aria-label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+      >
+        {visible ? 'Ẩn' : 'Hiện'}
+      </button>
+    </span>
+  </label>;
 }
 
 function AuthFrame({ title, subtitle, children }) {
