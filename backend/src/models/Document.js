@@ -17,7 +17,10 @@ const documentSchema = new mongoose.Schema({
   rejectionReason: { type: String, trim: true, default: '' },
   downloads: { type: Number, default: 0 },
   averageRating: { type: Number, default: 0 },
-  ratingCount: { type: Number, default: 0 }
+  ratingCount: { type: Number, default: 0 },
+  version: { type: Number, default: 1, min: 1 },
+  previousDocument: { type: mongoose.Schema.Types.ObjectId, ref: 'Document', default: null },
+  versionNote: { type: String, trim: true, maxlength: 1000, default: '' }
 }, { timestamps: true });
 
 documentSchema.index({ title: 'text', description: 'text', keywords: 'text', subject: 'text' });

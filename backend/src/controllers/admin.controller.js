@@ -3,6 +3,8 @@ import Document from '../models/Document.js';
 import Comment from '../models/Comment.js';
 import Download from '../models/Download.js';
 import { removeDocumentData } from '../services/document.service.js';
+import Notification from '../models/Notification.js';
+import Report from '../models/Report.js';
 
 export async function dashboard(_req, res) {
   const [users, documents, pending, downloads, popularDocuments, latestDocuments] = await Promise.all([
@@ -44,6 +46,15 @@ export async function moderateDocument(req, res) {
   document.status = status;
   document.rejectionReason = status === 'rejected' ? String(req.body.reason || '').trim().slice(0, 500) : '';
   await document.save();
+  await Notification.create({
+    recipient: document.owner,
+    type: status === 'approved' ? 'document_approved' : 'document_rejected',
+    title: status === 'approved' ? 'Tài liệu đã được duyệt' : 'Tài liệu bị từ chối',
+    message: status === 'approved'
+      ? `Tài liệu "${document.title}" đã được công khai.`
+      : `Tài liệu "${document.title}" không được duyệt${document.rejectionReason ? `: ${document.rejectionReason}` : '.'}`,
+    link: `/documents/${document._id}`
+  });
   res.json({ document });
 }
 
@@ -63,4 +74,19 @@ export async function deleteComment(req, res) {
   const comment = await Comment.findByIdAndDelete(req.params.commentId);
   if (!comment) return res.status(404).json({ message: 'Không tìm thấy bình luận' });
   res.json({ message: 'Đã xóa bình luận' });
+}
+
+export async function listReports(_req, res) {
+  const reports = await Report.find().populate('document', 'title status').populate('reporter', 'name email').sort({ createdAt: -1 }).limit(300);
+  res.json({ reports });
+}
+
+export async function updateReport(req, res) {
+  if (!['reviewed', 'dismissed'].includes(req.body.status)) return res.status(400).json({ message: 'Trạng thái xử lý không hợp lệ' });
+  const report = await Report.findById(req.params.id);
+  if (!report) return res.status(404).json({ message: 'Không tìm thấy báo cáo' });
+  report.status = req.body.status;
+  report.adminNote = String(req.body.adminNote || '').trim().slice(0, 1000);
+  await report.save();
+  res.json({ report });
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, getErrorMessage } from '../services/api.js';
 import DocumentGrid from '../components/DocumentGrid.jsx';
 
-const tabs = [['overview', 'Tổng quan'], ['queue', 'Duyệt tài liệu'], ['users', 'Người dùng'], ['categories', 'Danh mục'], ['comments', 'Bình luận']];
+const tabs = [['overview', 'Tổng quan'], ['queue', 'Duyệt tài liệu'], ['users', 'Người dùng'], ['categories', 'Danh mục'], ['comments', 'Bình luận'], ['reports', 'Báo cáo']];
 
 export default function Admin() {
   const [tab, setTab] = useState('overview');
@@ -11,6 +11,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [comments, setComments] = useState([]);
+  const [reports, setReports] = useState([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const load = async (target = tab) => {
@@ -21,6 +22,7 @@ export default function Admin() {
       if (target === 'users') setUsers((await api.get('/admin/users')).data.users);
       if (target === 'categories') setCategories((await api.get('/categories')).data.categories);
       if (target === 'comments') setComments((await api.get('/admin/comments')).data.comments);
+      if (target === 'reports') setReports((await api.get('/admin/reports')).data.reports);
     } catch (err) { setError(getErrorMessage(err)); }
   };
   useEffect(() => { load(tab); }, [tab]);
@@ -51,6 +53,10 @@ export default function Admin() {
     {tab === 'users' && <div className="card overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-muted"><tr><th className="p-4">Người dùng</th><th className="p-4">Vai trò</th><th className="p-4">Trạng thái</th><th className="p-4">Ngày tham gia</th><th className="p-4"></th></tr></thead><tbody className="divide-y divide-slate-100">{users.map((user) => <tr key={user._id}><td className="p-4"><strong>{user.name}</strong><p className="text-xs text-muted">{user.email}</p></td><td className="p-4">{user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}</td><td className="p-4">{user.isActive ? 'Đang hoạt động' : 'Đã khóa'}</td><td className="p-4">{new Date(user.createdAt).toLocaleDateString('vi-VN')}</td><td className="p-4">{user.role !== 'admin' && <button className="font-bold text-brand-600" onClick={() => toggleUser(user)}>{user.isActive ? 'Khóa' : 'Mở khóa'}</button>}</td></tr>)}</tbody></table></div></div>}
     {tab === 'categories' && <CategoryManager categories={categories} reload={() => load('categories')} setError={setError} setMessage={setMessage} />}
     {tab === 'comments' && <div className="card divide-y divide-slate-100 p-5">{comments.map((comment) => <article key={comment._id} className="flex items-start justify-between gap-4 py-4 first:pt-0"><div><p className="text-sm font-bold">{comment.user?.name} <span className="font-normal text-muted">trên</span> {comment.document?.title || 'Tài liệu đã xóa'}</p><p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{comment.text}</p><time className="mt-1 block text-xs text-muted">{new Date(comment.createdAt).toLocaleDateString('vi-VN')}</time></div><button onClick={() => deleteComment(comment._id)} className="text-sm font-bold text-rose-600">Xóa</button></article>)}{!comments.length && <Empty text="Chưa có bình luận." />}</div>}
+    {tab === 'reports' && <div className="card divide-y divide-slate-100 p-5">{reports.map((report) => <article key={report._id} className="flex flex-wrap items-start justify-between gap-4 py-4 first:pt-0">
+      <div className="min-w-0 flex-1"><p className="text-sm"><strong>{report.reporter?.name}</strong> báo cáo <strong>{report.document?.title || 'Tài liệu đã xóa'}</strong></p><p className="mt-1 text-xs text-muted">Lý do: {report.reason} · {new Date(report.createdAt).toLocaleDateString('vi-VN')}</p>{report.details && <p className="mt-2 text-sm text-slate-600">{report.details}</p>}<p className="mt-2 text-xs font-bold text-amber-700">{report.status}</p></div>
+      <div className="flex gap-2">{report.status === 'pending' && <><button onClick={async () => { await api.patch(`/admin/reports/${report._id}`, { status: 'reviewed', adminNote: 'Đã xử lý báo cáo' }); setReports((items) => items.map((item) => item._id === report._id ? { ...item, status: 'reviewed' } : item)); }} className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">Đã xử lý</button><button onClick={async () => { await api.patch(`/admin/reports/${report._id}`, { status: 'dismissed', adminNote: 'Báo cáo không hợp lệ' }); setReports((items) => items.map((item) => item._id === report._id ? { ...item, status: 'dismissed' } : item)); }} className="rounded-lg bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Bỏ qua</button></>}</div>
+    </article>)}{!reports.length && <Empty text="Chưa có báo cáo vi phạm." />}</div>}
   </div>;
 }
 

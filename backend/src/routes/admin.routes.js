@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  dashboard, deleteComment, deleteDocument, listComments, listPendingDocuments, listUsers, moderateDocument, setUserStatus
+  dashboard, deleteComment, deleteDocument, listComments, listPendingDocuments, listReports, listUsers, moderateDocument, setUserStatus, updateReport
 } from '../controllers/admin.controller.js';
 import { authenticate, requireRole } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -15,5 +15,7 @@ router.get('/comments', asyncHandler(listComments));
 router.patch('/documents/:id/moderate', asyncHandler(moderateDocument));
 router.delete('/documents/:id', asyncHandler(deleteDocument));
 router.delete('/comments/:commentId', asyncHandler(deleteComment));
+router.get('/reports', asyncHandler(listReports));
+router.patch('/reports/:id', asyncHandler(updateReport));
 
 export default router;

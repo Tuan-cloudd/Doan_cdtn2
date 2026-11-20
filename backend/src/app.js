@@ -8,6 +8,7 @@ import documentRoutes from './routes/document.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import userRoutes from './routes/user.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import featureRoutes from './routes/feature.routes.js';
 import { notFound, errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
@@ -22,6 +23,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/features', featureRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

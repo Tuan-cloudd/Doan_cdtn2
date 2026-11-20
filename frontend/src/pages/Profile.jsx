@@ -37,6 +37,7 @@ export default function Profile() {
   }
   return <div className="page-wrap py-12">
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-xs font-bold uppercase tracking-[.15em] text-brand-600">Tài khoản của bạn</p><h1 className="section-title">Xin chào, {user.name}</h1></div><Link to="/favorites" className="button-secondary">♡ Tài liệu yêu thích</Link></div>
+    <div className="mb-6 flex flex-wrap gap-3"><Link to="/collections" className="button-secondary !px-4 !py-2.5">▤ Bộ sưu tập & lịch sử</Link></div>
     <div className="grid items-start gap-6 lg:grid-cols-[.8fr_1.2fr]">
       <div className="space-y-6">
         <form className="card space-y-4 p-6" onSubmit={updateProfile}>
@@ -61,6 +62,7 @@ export default function Profile() {
           <div className="min-w-0 flex-1"><h3 className="truncate font-bold text-ink">{document.title}</h3><p className="mt-1 text-xs text-muted">{document.subject || document.documentType || 'Tài liệu'} · {new Date(document.createdAt).toLocaleDateString('vi-VN')}</p>{document.status === 'rejected' && document.rejectionReason && <p className="mt-1 text-xs text-rose-600">Lý do: {document.rejectionReason}</p>}</div>
           <StatusBadge status={document.status} />
           {document.status === 'approved' && <Link to={`/documents/${document._id}`} className="text-sm font-bold text-brand-600">Xem</Link>}
+          {document.status === 'approved' && <Link to={`/upload?replace=${document._id}`} className="text-sm font-bold text-brand-600">Phiên bản mới</Link>}
           <button onClick={() => deleteDocument(document)} className="text-sm font-bold text-rose-600 hover:text-rose-700">Xóa</button>
         </article>)}
         {!documents.length && !error && <div className="rounded-xl bg-slate-50 py-12 text-center text-sm text-muted">Bạn chưa đăng tải tài liệu nào.</div>}

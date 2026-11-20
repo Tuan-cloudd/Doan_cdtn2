@@ -12,7 +12,14 @@ async function seed() {
   const password = process.env.ADMIN_PASSWORD || 'ChangeMe123!';
   await User.updateOne(
     { email },
-    { $setOnInsert: { name: 'Quản trị viên', email, passwordHash: await bcrypt.hash(password, 12), role: 'admin' } },
+    {
+      $set: { role: 'admin', isActive: true },
+      $setOnInsert: {
+        name: 'Quản trị viên',
+        email,
+        passwordHash: await bcrypt.hash(password, 12)
+      }
+    },
     { upsert: true }
   );
   const categories = [

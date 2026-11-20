@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { api } from '../services/api.js';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getErrorMessage } from '../services/api.js';
@@ -17,6 +19,7 @@ export function Login() {
     {error && <p className="notice-error">{error}</p>}
     <label className="block"><span className="label">Email</span><input className="field" name="email" type="email" autoComplete="email" required placeholder="ban@email.com" /></label>
     <PasswordField label="Mật khẩu" name="password" autoComplete="current-password" required placeholder="Nhập mật khẩu" />
+    <div className="text-right"><Link to="/forgot-password" className="text-sm font-bold text-brand-600">Quên mật khẩu?</Link></div>
     <button className="button-primary w-full" disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
     <p className="pt-1 text-center text-sm text-muted">Chưa có tài khoản? <Link to="/register" className="font-bold text-brand-600">Đăng ký ngay</Link></p>
   </form></AuthFrame>;
@@ -42,6 +45,56 @@ export function Register() {
     <PasswordField label="Nhập lại mật khẩu" name="confirmPassword" autoComplete="new-password" minLength="8" required placeholder="Nhập lại mật khẩu" />
     <button className="button-primary w-full" disabled={busy}>{busy ? 'Đang tạo tài khoản…' : 'Tạo tài khoản'}</button>
     <p className="pt-1 text-center text-sm text-muted">Đã có tài khoản? <Link to="/login" className="font-bold text-brand-600">Đăng nhập</Link></p>
+  </form></AuthFrame>;
+}
+
+export function ForgotPassword() {
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const { data } = await api.post('/auth/forgot-password', Object.fromEntries(new FormData(event.currentTarget)));
+      setMessage(data.demoResetUrl ? `Demo reset: ${data.demoResetUrl}` : data.message);
+    } catch (err) { setError(getErrorMessage(err)); }
+    finally { setBusy(false); }
+  }
+  return <AuthFrame title="Quên mật khẩu" subtitle="Nhập email để nhận liên kết đặt lại mật khẩu."><form onSubmit={submit} className="space-y-4">
+    {error && <p className="notice-error">{error}</p>}
+    {message && <p className="notice-success break-all">{message}</p>}
+    <label className="block"><span className="label">Email</span><input className="field" name="email" type="email" required /></label>
+    <button className="button-primary w-full" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi liên kết đặt lại'}</button>
+    <p className="text-center text-sm"><Link to="/login" className="font-bold text-brand-600">Quay lại đăng nhập</Link></p>
+  </form></AuthFrame>;
+}
+
+export function ResetPassword() {
+  const { token } = useParams();
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true); setError(''); setMessage('');
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    if (values.password !== values.confirmPassword) {
+      setBusy(false); setError('Mật khẩu xác nhận chưa khớp'); return;
+    }
+    try {
+      const { data } = await api.post('/auth/reset-password', { token, password: values.password });
+      setMessage(data.message);
+      event.currentTarget.reset();
+    } catch (err) { setError(getErrorMessage(err)); }
+    finally { setBusy(false); }
+  }
+  return <AuthFrame title="Đặt lại mật khẩu" subtitle="Tạo mật khẩu mới cho tài khoản của bạn."><form onSubmit={submit} className="space-y-4">
+    {error && <p className="notice-error">{error}</p>}
+    {message && <p className="notice-success">{message}</p>}
+    <PasswordField label="Mật khẩu mới" name="password" minLength="8" required />
+    <PasswordField label="Xác nhận mật khẩu" name="confirmPassword" minLength="8" required />
+    <button className="button-primary w-full" disabled={busy}>{busy ? 'Đang cập nhật…' : 'Đặt lại mật khẩu'}</button>
   </form></AuthFrame>;
 }
 

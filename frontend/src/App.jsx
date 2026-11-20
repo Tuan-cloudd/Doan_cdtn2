@@ -7,7 +7,8 @@ import Upload from './pages/Upload.jsx';
 import Profile from './pages/Profile.jsx';
 import Favorites from './pages/Favorites.jsx';
 import Admin from './pages/Admin.jsx';
-import { Login, Register } from './pages/Auth.jsx';
+import { ForgotPassword, Login, Register, ResetPassword } from './pages/Auth.jsx';
+import Collections from './pages/Collections.jsx';
 
 export default function App() {
   return <Routes><Route element={<Layout />}>
@@ -16,9 +17,12 @@ export default function App() {
     <Route path="documents/:id" element={<DocumentDetail />} />
     <Route path="login" element={<Login />} />
     <Route path="register" element={<Register />} />
+    <Route path="forgot-password" element={<ForgotPassword />} />
+    <Route path="reset-password/:token" element={<ResetPassword />} />
     <Route path="upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
     <Route path="profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     <Route path="favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+    <Route path="collections" element={<ProtectedRoute><Collections /></ProtectedRoute>} />
     <Route path="admin" element={<ProtectedRoute admin><Admin /></ProtectedRoute>} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Route></Routes>;

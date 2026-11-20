@@ -6,7 +6,9 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true, select: false },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   bio: { type: String, trim: true, maxlength: 500, default: '' },
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  passwordResetTokenHash: { type: String, select: false, default: '' },
+  passwordResetExpires: { type: Date, select: false, default: null }
 }, { timestamps: true });
 
 export default mongoose.model('User', userSchema);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  addComment, createDocument, downloadDocument, getDocument, listDocuments, previewDocument, rateDocument, toggleFavorite
+  addComment, createDocument, createDocumentVersion, downloadDocument, getDocument, listDocuments, previewDocument, rateDocument, toggleFavorite
 } from '../controllers/document.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { uploadDocument } from '../middleware/upload.middleware.js';
@@ -18,6 +18,15 @@ router.post('/', authenticate, (req, res, next) => {
     next();
   });
 }, asyncHandler(createDocument));
+router.post('/:id/version', authenticate, (req, res, next) => {
+  uploadDocument(req, res, (error) => {
+    if (error) {
+      error.status = 400;
+      return next(error);
+    }
+    next();
+  });
+}, asyncHandler(createDocumentVersion));
 router.get('/:id/download', optionalAuthenticate, asyncHandler(downloadDocument));
 router.get('/:id', optionalAuthenticate, asyncHandler(getDocument));
 router.post('/:id/comments', authenticate, asyncHandler(addComment));

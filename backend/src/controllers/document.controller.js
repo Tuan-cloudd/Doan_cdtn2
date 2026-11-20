@@ -6,6 +6,7 @@ import Comment from '../models/Comment.js';
 import Rating from '../models/Rating.js';
 import Favorite from '../models/Favorite.js';
 import Download from '../models/Download.js';
+import Notification from '../models/Notification.js';
 
 const uploadDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', process.env.UPLOAD_DIR || 'uploads');
 const cardPopulate = { path: 'owner', select: 'name' };
@@ -60,6 +61,41 @@ export async function createDocument(req, res) {
   res.status(201).json({ document, message: 'Tài liệu đã được gửi để quản trị viên duyệt' });
 }
 
+export async function createDocumentVersion(req, res) {
+  if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn tệp phiên bản mới' });
+  const previous = await Document.findOne({ _id: req.params.id, owner: req.user._id });
+  if (!previous) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(404).json({ message: 'Không tìm thấy tài liệu của bạn' });
+  }
+  const title = String(req.body.title || previous.title).trim();
+  if (!title) {
+    fs.unlink(req.file.path, () => {});
+    return res.status(400).json({ message: 'Tiêu đề là bắt buộc' });
+  }
+  const keywordList = typeof req.body.keywords === 'string'
+    ? req.body.keywords.split(',').map((word) => word.trim().toLowerCase()).filter(Boolean).slice(0, 20)
+    : previous.keywords;
+  const document = await Document.create({
+    title,
+    description: req.body.description !== undefined ? String(req.body.description).trim().slice(0, 3000) : previous.description,
+    faculty: req.body.faculty || previous.faculty,
+    major: req.body.major || previous.major,
+    subject: req.body.subject || previous.subject,
+    documentType: req.body.documentType || previous.documentType,
+    keywords: keywordList,
+    owner: req.user._id,
+    originalName: req.file.originalname,
+    storedName: req.file.filename,
+    mimeType: req.file.mimetype,
+    size: req.file.size,
+    version: (previous.version || 1) + 1,
+    previousDocument: previous._id,
+    versionNote: String(req.body.versionNote || '').trim().slice(0, 1000)
+  });
+  res.status(201).json({ document, message: 'Phiên bản mới đã được gửi để quản trị viên duyệt' });
+}
+
 export async function downloadDocument(req, res) {
   const document = await Document.findOne({ _id: req.params.id, status: 'approved' });
   if (!document) return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
@@ -90,6 +126,15 @@ export async function addComment(req, res) {
   if (!text || text.length > 2000) return res.status(400).json({ message: 'Bình luận phải từ 1 đến 2000 ký tự' });
   const comment = await Comment.create({ document: document._id, user: req.user._id, text });
   await comment.populate('user', 'name');
+  if (document.owner.toString() !== req.user._id.toString()) {
+    await Notification.create({
+      recipient: document.owner,
+      type: 'comment',
+      title: 'Có bình luận mới',
+      message: `${req.user.name} đã bình luận trên tài liệu "${document.title}".`,
+      link: `/documents/${document._id}`
+    });
+  }
   res.status(201).json({ comment });
 }
 

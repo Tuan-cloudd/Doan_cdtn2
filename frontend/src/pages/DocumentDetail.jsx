@@ -10,8 +10,12 @@ export default function DocumentDetail() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [collections, setCollections] = useState([]);
   const load = () => api.get(`/documents/${id}`).then(({ data: result }) => setData(result)).catch((err) => setError(getErrorMessage(err)));
   useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    if (user) api.get('/features/collections').then(({ data }) => setCollections(data.collections)).catch(() => {});
+  }, [user]);
   async function submitComment(event) {
     event.preventDefault(); setBusy(true); setNotice('');
     const form = event.currentTarget;
@@ -29,6 +33,25 @@ export default function DocumentDetail() {
     try {
       const { data: result } = await api.post(`/documents/${id}/favorite`);
       setData((current) => ({ ...current, isFavorite: result.isFavorite }));
+    } catch (err) { setNotice(getErrorMessage(err)); }
+  }
+  async function report(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try {
+      await api.post(`/features/documents/${id}/reports`, Object.fromEntries(new FormData(form)));
+      setNotice('Báo cáo đã được gửi cho quản trị viên.');
+      form.reset();
+    } catch (err) { setNotice(getErrorMessage(err)); }
+  }
+  async function toggleInCollection(collectionId) {
+    try {
+      await api.post(`/features/collections/${collectionId}/documents/${id}`);
+      setCollections((items) => items.map((item) => item._id === collectionId
+        ? { ...item, documents: item.documents?.some((doc) => doc._id === id)
+          ? item.documents.filter((doc) => doc._id !== id)
+          : [...(item.documents || []), document] }
+        : item));
     } catch (err) { setNotice(getErrorMessage(err)); }
   }
   if (error) return <div className="page-wrap py-20"><p className="notice-error">{error}</p><Link className="mt-4 inline-block text-brand-600" to="/search">← Quay lại tìm kiếm</Link></div>;
@@ -68,6 +91,18 @@ export default function DocumentDetail() {
         <p className="mt-2 break-all text-sm text-muted">{document.originalName}</p>
         <p className="mt-1 text-xs text-muted">{(document.size / (1024 * 1024)).toFixed(2)} MB · {document.downloads} lượt tải</p>
         <a href={`${api.defaults.baseURL}/documents/${document._id}/download`} className="button-primary mt-5 w-full" download={document.originalName}>↓ Tải xuống</a>
+        {user && <div className="mt-5 border-t border-slate-100 pt-4">
+          <h3 className="mb-2 text-sm font-bold">Thêm vào bộ sưu tập</h3>
+          {collections.length ? <div className="space-y-2">{collections.map((collection) => <button key={collection._id} onClick={() => toggleInCollection(collection._id)} className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+            <span>{collection.name}</span><span className="font-bold text-brand-600">{collection.documents?.some((item) => item._id === document._id) ? '✓' : '+'}</span>
+          </button>)}</div> : <Link to="/collections" className="text-sm font-bold text-brand-600">Tạo bộ sưu tập</Link>}
+        </div>}
+        {user && <form onSubmit={report} className="mt-5 border-t border-slate-100 pt-4">
+          <h3 className="mb-2 text-sm font-bold">Báo cáo tài liệu</h3>
+          <select className="field" name="reason" required><option value="">Chọn lý do</option><option value="copyright">Vi phạm bản quyền</option><option value="spam">Spam</option><option value="wrong_subject">Sai môn học</option><option value="inappropriate">Nội dung không phù hợp</option><option value="other">Khác</option></select>
+          <textarea className="field mt-2 min-h-16" name="details" maxLength="1000" placeholder="Thông tin bổ sung" />
+          <button className="mt-2 w-full rounded-lg border border-rose-200 px-3 py-2 text-sm font-bold text-rose-600">Gửi báo cáo</button>
+        </form>}
         <div className="mt-5 border-t border-slate-100 pt-4 text-xs leading-5 text-muted">Tài liệu được cộng đồng chia sẻ. Vui lòng tôn trọng bản quyền và quy định học thuật.</div>
       </aside>
     </div>

@@ -4,6 +4,17 @@
 
 ## Chức năng hiện có
 
+### Chức năng MVP bổ sung
+
+- Thông báo khi tài liệu được duyệt/từ chối hoặc nhận bình luận mới.
+- Báo cáo tài liệu vi phạm và trang xử lý báo cáo cho Admin.
+- Tạo bộ sưu tập tài liệu và thêm/bỏ tài liệu trong trang chi tiết.
+- Lịch sử tải tài liệu trong hồ sơ người dùng.
+- Upload phiên bản mới của tài liệu đã duyệt kèm ghi chú thay đổi.
+- Quên mật khẩu qua email/SMTP, đặt lại bằng token hết hạn sau 30 phút.
+
+Chi tiết thiết kế, luồng nghiệp vụ, collection mới và API mới được mô tả trong [thiet_ke.md](./thiet_ke.md).
+
 - Đăng ký/đăng nhập JWT, mật khẩu bcrypt, vai trò `user` và `admin`.
 - Hồ sơ cá nhân, đổi mật khẩu, xem trạng thái các tài liệu đã tải lên và danh sách yêu thích.
 - Tìm kiếm toàn văn, lọc khoa/ngành/môn/loại, sắp xếp mới nhất/phổ biến/đánh giá cao và phân trang.
@@ -117,4 +128,4 @@ Tất cả endpoint có tiền tố `/api`. Endpoint bảo vệ yêu cầu `Auth
 
 - Không commit `.env`, JWT secret, hoặc mật khẩu; tắt/tạo lại thông tin admin mẫu trước khi public.
 - Chạy HTTPS, CORS theo đúng domain, và cân nhắc xác minh nội dung thực tế của tệp, antivirus, object storage riêng tư, backup và logging/monitoring khi production.
-- Tài khoản admin được tạo idempotent bởi `npm run seed`; lệnh không ghi đè mật khẩu của admin đã tồn tại.
+- `npm run seed` tạo admin nếu chưa tồn tại hoặc nâng vai trò của tài khoản trùng `ADMIN_EMAIL` lên admin và mở khóa tài khoản đó. Lệnh không ghi đè mật khẩu của tài khoản đã tồn tại; dùng mật khẩu hiện tại của tài khoản để đăng nhập.
