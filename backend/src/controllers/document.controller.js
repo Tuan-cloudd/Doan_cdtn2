@@ -12,10 +12,31 @@ const uploadDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const cardPopulate = { path: 'owner', select: 'name' };
 
 export async function listDocuments(req, res) {
-  const { q, subject, major, faculty, type, sort = 'newest', page = '1', limit = '12' } = req.query;
+ const {
+  q, subject, major, faculty, type,
+  fileFormat,
+  sort = 'newest',
+  page = '1',
+  limit = '12'
+} = req.query;
   const pageNumber = Math.max(1, Number.parseInt(page, 10) || 1);
   const pageSize = Math.min(40, Math.max(1, Number.parseInt(limit, 10) || 12));
   const filter = { status: 'approved' };
+  const formatMimeTypes = {
+  pdf: ['application/pdf'],
+  word: [
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ],
+  powerpoint: [
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  ]
+};
+
+if (fileFormat && formatMimeTypes[fileFormat]) {
+  filter.mimeType = { $in: formatMimeTypes[fileFormat] };
+}
   if (q?.trim()) filter.$text = { $search: q.trim() };
   for (const [key, value] of Object.entries({ subject, major, faculty, documentType: type })) {
     if (value) filter[key] = value;
