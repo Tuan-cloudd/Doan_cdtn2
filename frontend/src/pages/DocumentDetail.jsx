@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { api, fileUrl, getErrorMessage } from '../services/api.js';
+import OfficeDocumentPreview from '../components/OfficeDocumentPreview.jsx';
 
 export default function DocumentDetail() {
   const { id } = useParams();
@@ -58,6 +59,12 @@ export default function DocumentDetail() {
   if (!data) return <div className="page-wrap py-24 text-center text-muted">Đang tải tài liệu…</div>;
   const { document, comments } = data;
   const pdf = document.mimeType === 'application/pdf';
+  const fileName = document.originalName.toLowerCase();
+  const officeFormat = document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileName.endsWith('.docx')
+    ? 'docx'
+    : document.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || fileName.endsWith('.pptx')
+      ? 'pptx'
+      : null;
   return <div className="page-wrap py-10">
     <Link to="/search" className="mb-6 inline-block text-sm font-semibold text-muted hover:text-brand-600">← Quay lại thư viện</Link>
     <div className="grid items-start gap-7 lg:grid-cols-[1fr_340px]">
@@ -77,7 +84,11 @@ export default function DocumentDetail() {
           <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted">{document.description || 'Chưa có mô tả.'}</p>
           {document.keywords?.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{document.keywords.map((keyword) => <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs text-brand-700" key={keyword}>#{keyword}</span>)}</div>}
         </div>
-        {pdf ? <div className="card mt-6 overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-3"><h2 className="font-bold">Xem trước PDF</h2><a href={`${fileUrl(document._id)}#toolbar=1`} target="_blank" rel="noreferrer" className="text-sm font-bold text-brand-600">Mở toàn màn hình ↗</a></div><iframe title={`Xem trước ${document.title}`} src={`${fileUrl(document._id)}#toolbar=0`} className="h-[620px] w-full bg-slate-100" /></div> : <div className="card mt-6 flex items-center gap-4 p-5"><span className="grid h-12 w-12 place-items-center rounded-xl bg-amber-50 text-2xl">▱</span><div><h2 className="font-bold text-ink">Tệp {document.originalName}</h2><p className="mt-1 text-xs text-muted">Xem trước trực tuyến chưa hỗ trợ định dạng này.</p></div></div>}
+        {pdf
+          ? <div className="card mt-6 overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-3"><h2 className="font-bold">Xem trước PDF</h2><a href={`${fileUrl(document._id)}#toolbar=1`} target="_blank" rel="noreferrer" className="text-sm font-bold text-brand-600">Mở toàn màn hình ↗</a></div><iframe title={`Xem trước ${document.title}`} src={`${fileUrl(document._id)}#toolbar=0`} className="h-[620px] w-full bg-slate-100" /></div>
+          : officeFormat
+            ? <OfficeDocumentPreview documentId={document._id} format={officeFormat} />
+            : <div className="card mt-6 flex items-center gap-4 p-5"><span className="grid h-12 w-12 place-items-center rounded-xl bg-amber-50 text-2xl">▱</span><div><h2 className="font-bold text-ink">Tệp {document.originalName}</h2><p className="mt-1 text-xs text-muted">Xem trước trực tuyến chưa hỗ trợ định dạng này.</p></div></div>}
         <section className="card mt-6 p-6">
           <div className="flex items-center justify-between"><h2 className="text-lg font-extrabold">Đánh giá & bình luận</h2><span className="text-amber-500">★ {Number(document.averageRating || 0).toFixed(1)} <span className="text-xs text-muted">({document.ratingCount})</span></span></div>
           <div className="mt-4 flex items-center gap-2"><span className="text-sm text-muted">Đánh giá tài liệu:</span>{[1, 2, 3, 4, 5].map((value) => <button key={value} aria-label={`Đánh giá ${value} sao`} disabled={!user} onClick={() => rate(value)} className="text-2xl text-amber-400 transition hover:scale-110 disabled:opacity-40">★</button>)}</div>

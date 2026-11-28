@@ -1,15 +1,43 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import Document from '../models/Document.js';
 import Comment from '../models/Comment.js';
 import Rating from '../models/Rating.js';
 import Favorite from '../models/Favorite.js';
 import Download from '../models/Download.js';
 import Notification from '../models/Notification.js';
+import { deleteGridFsDocumentFile, getDocumentFile, storeDocumentFile } from '../services/document-file.service.js';
 
-const uploadDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', process.env.UPLOAD_DIR || 'uploads');
 const cardPopulate = { path: 'owner', select: 'name' };
+
+async function createDocumentWithFile(fields, file) {
+  const storedName = await storeDocumentFile(file.buffer, file.originalname, file.mimetype);
+  try {
+    return await Document.create({
+      ...fields,
+      originalName: file.originalname,
+      storedName,
+      mimeType: file.mimetype,
+      size: file.size
+    });
+  } catch (error) {
+    try {
+      await deleteGridFsDocumentFile(storedName);
+    } catch (cleanupError) {
+      console.error('Unable to remove an orphaned GridFS file:', cleanupError);
+    }
+    throw error;
+  }
+}
+
+function pipeDocumentFile(file, res, next) {
+  file.stream.once('error', (error) => {
+    if (res.headersSent) {
+      res.destroy(error);
+      return;
+    }
+    next(error);
+  });
+  file.stream.pipe(res);
+}
 
 export async function listDocuments(req, res) {
   const { q, subject, major, faculty, type, sort = 'newest', page = '1', limit = '12' } = req.query;
@@ -42,41 +70,28 @@ export async function getDocument(req, res) {
 export async function createDocument(req, res) {
   if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn tệp tài liệu' });
   const { title, description, faculty, major, subject, documentType, keywords } = req.body;
-  if (!title?.trim()) {
-    fs.unlink(req.file.path, () => {});
-    return res.status(400).json({ message: 'Tiêu đề là bắt buộc' });
-  }
+  if (!title?.trim()) return res.status(400).json({ message: 'Tiêu đề là bắt buộc' });
   const keywordList = typeof keywords === 'string'
     ? keywords.split(',').map((word) => word.trim().toLowerCase()).filter(Boolean).slice(0, 20)
     : [];
-  const document = await Document.create({
+  const document = await createDocumentWithFile({
     title: title.trim(), description, faculty, major, subject, documentType,
     keywords: keywordList,
-    owner: req.user._id,
-    originalName: req.file.originalname,
-    storedName: req.file.filename,
-    mimeType: req.file.mimetype,
-    size: req.file.size
-  });
+    owner: req.user._id
+  }, req.file);
   res.status(201).json({ document, message: 'Tài liệu đã được gửi để quản trị viên duyệt' });
 }
 
 export async function createDocumentVersion(req, res) {
   if (!req.file) return res.status(400).json({ message: 'Vui lòng chọn tệp phiên bản mới' });
   const previous = await Document.findOne({ _id: req.params.id, owner: req.user._id });
-  if (!previous) {
-    fs.unlink(req.file.path, () => {});
-    return res.status(404).json({ message: 'Không tìm thấy tài liệu của bạn' });
-  }
+  if (!previous) return res.status(404).json({ message: 'Không tìm thấy tài liệu của bạn' });
   const title = String(req.body.title || previous.title).trim();
-  if (!title) {
-    fs.unlink(req.file.path, () => {});
-    return res.status(400).json({ message: 'Tiêu đề là bắt buộc' });
-  }
+  if (!title) return res.status(400).json({ message: 'Tiêu đề là bắt buộc' });
   const keywordList = typeof req.body.keywords === 'string'
     ? req.body.keywords.split(',').map((word) => word.trim().toLowerCase()).filter(Boolean).slice(0, 20)
     : previous.keywords;
-  const document = await Document.create({
+  const document = await createDocumentWithFile({
     title,
     description: req.body.description !== undefined ? String(req.body.description).trim().slice(0, 3000) : previous.description,
     faculty: req.body.faculty || previous.faculty,
@@ -85,38 +100,37 @@ export async function createDocumentVersion(req, res) {
     documentType: req.body.documentType || previous.documentType,
     keywords: keywordList,
     owner: req.user._id,
-    originalName: req.file.originalname,
-    storedName: req.file.filename,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
     version: (previous.version || 1) + 1,
     previousDocument: previous._id,
     versionNote: String(req.body.versionNote || '').trim().slice(0, 1000)
-  });
+  }, req.file);
   res.status(201).json({ document, message: 'Phiên bản mới đã được gửi để quản trị viên duyệt' });
 }
 
-export async function downloadDocument(req, res) {
+export async function downloadDocument(req, res, next) {
   const document = await Document.findOne({ _id: req.params.id, status: 'approved' });
   if (!document) return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
-  const filePath = path.join(uploadDir, path.basename(document.storedName));
-  if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Tệp tài liệu không còn tồn tại' });
+  const file = await getDocumentFile(document.storedName);
+  if (!file) return res.status(404).json({ message: 'Tệp tài liệu không còn tồn tại' });
   document.downloads += 1;
   await Promise.all([
     document.save(),
     Download.create({ document: document._id, user: req.user?._id || null })
   ]);
-  res.download(filePath, document.originalName);
+  res.setHeader('Content-Type', document.mimeType);
+  res.attachment(document.originalName);
+  pipeDocumentFile(file, res, next);
 }
 
-export async function previewDocument(req, res) {
+export async function previewDocument(req, res, next) {
   const document = await Document.findOne({ _id: req.params.id, status: 'approved' });
   if (!document) return res.status(404).json({ message: 'Không tìm thấy tài liệu' });
-  const filePath = path.join(uploadDir, path.basename(document.storedName));
-  if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Tệp tài liệu không còn tồn tại' });
+  const file = await getDocumentFile(document.storedName);
+  if (!file) return res.status(404).json({ message: 'Tệp tài liệu không còn tồn tại' });
   res.setHeader('Content-Type', document.mimeType);
+  res.setHeader('Content-Length', file.length);
   res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(document.originalName)}`);
-  res.sendFile(filePath);
+  pipeDocumentFile(file, res, next);
 }
 
 export async function addComment(req, res) {

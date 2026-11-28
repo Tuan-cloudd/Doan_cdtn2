@@ -1,6 +1,6 @@
 # StudyShare — Hệ thống Web Tìm kiếm và Chia sẻ Tài liệu Học tập
 
-Ứng dụng Client–Server gồm React/Vite, Express REST API và MongoDB/Mongoose. Nội dung dữ liệu được đọc/ghi từ MongoDB; tệp tải lên được lưu trên ổ đĩa server trong `backend/uploads/` (có thể đổi bằng `UPLOAD_DIR`). Tài liệu mới ở trạng thái chờ duyệt và chỉ tài liệu đã duyệt mới được tìm kiếm, xem trước hoặc tải xuống.
+Ứng dụng Client–Server gồm React/Vite, Express REST API và MongoDB/Mongoose. Nội dung dữ liệu và tệp tải lên được lưu trong MongoDB; tệp dùng GridFS để mọi máy chủ kết nối cùng database đều phục vụ được. `backend/uploads/` (có thể đổi bằng `UPLOAD_DIR`) chỉ còn dùng để đọc/chuyển các tệp cũ. Tài liệu mới ở trạng thái chờ duyệt và chỉ tài liệu đã duyệt mới được tìm kiếm, xem trước hoặc tải xuống.
 
 ## Chức năng hiện có
 
@@ -18,7 +18,7 @@ Chi tiết thiết kế, luồng nghiệp vụ, collection mới và API mới �
 - Đăng ký/đăng nhập JWT, mật khẩu bcrypt, vai trò `user` và `admin`.
 - Hồ sơ cá nhân, đổi mật khẩu, xem trạng thái các tài liệu đã tải lên và danh sách yêu thích.
 - Tìm kiếm toàn văn, lọc khoa/ngành/môn/loại, sắp xếp mới nhất/phổ biến/đánh giá cao và phân trang.
-- Tải PDF/DOCX/PPTX (mặc định tối đa 20 MB), thông tin/từ khóa, hàng chờ duyệt; xem trước PDF, tải xuống tài liệu.
+- Tải PDF/DOCX/PPTX (mặc định tối đa 20 MB), thông tin/từ khóa, hàng chờ duyệt; xem trước PDF/DOCX/PPTX và tải xuống tài liệu.
 - Đánh giá 1–5 sao, bình luận và lưu/bỏ lưu yêu thích.
 - Admin: số liệu, duyệt/từ chối/xóa tài liệu, quản lý trạng thái người dùng, danh mục và bình luận.
 - Rate limit API, Helmet, CORS, kiểm tra đầu vào cơ bản, xử lý lỗi tập trung và cấu hình qua biến môi trường.
@@ -33,9 +33,11 @@ backend/
     middleware/      JWT, phân quyền, upload và lỗi
     models/          User, Document, Category, Subject, Comment, Rating, Favorite, Download
     routes/          REST endpoints
+    scripts/         Chuyển tệp cũ lên GridFS
     seeds/            Tạo admin và dữ liệu danh mục mẫu
+    services/        Nghiệp vụ tài liệu và lưu tệp
     utils/            Hàm dùng chung
-  uploads/            Tệp người dùng (tự tạo khi upload)
+  uploads/            Tệp cũ cần chuyển lên GridFS
 frontend/
   src/
     components/       Layout, thẻ tài liệu và lưới
@@ -58,6 +60,7 @@ frontend/
 | `downloads` | Lịch sử tải, có thể không gắn user với khách |
 
 `Document` sử dụng text index cho tiêu đề, mô tả, từ khóa, môn học; rating và favorites có unique compound index.
+Nội dung tệp nằm trong GridFS bucket `documentFiles` (`documentFiles.files` và `documentFiles.chunks`); `Document.storedName` giữ ID của tệp trong bucket.
 
 ## Cài đặt và chạy trong Visual Studio Code
 
@@ -89,7 +92,15 @@ Yêu cầu: Node.js 20+, npm và MongoDB đang chạy (local hoặc MongoDB Atla
    Mở URL Vite hiển thị (mặc định `http://localhost:5173`). Đăng nhập bằng email/mật khẩu admin đã cấu hình để quản trị; tạo tài khoản thường ngay tại giao diện.
 5. Giai đoạn kiểm thử đề xuất: (1) `/api/health` và kết nối MongoDB; (2) đăng ký/đăng nhập; (3) upload tài liệu, duyệt bằng Admin; (4) tìm kiếm, xem trước/tải file, đánh giá/bình luận/yêu thích; (5) quản lý danh mục và người dùng.
 
-Muốn tăng giới hạn tệp, cập nhật `MAX_FILE_SIZE_MB`. Tệp và MongoDB đều cần được backup. Local disk là adapter triển khai đơn giản; khi scale ra nhiều instance, thay vùng lưu trữ bằng object storage riêng tư và dùng URL ký thời hạn ngắn.
+Để chuyển các tệp cũ từ máy đang lưu chúng lên GridFS, chạy một lần trên máy đó:
+
+```powershell
+cd backend
+npm run migrate:files
+```
+
+Lệnh giữ nguyên tài liệu và chỉ cập nhật nơi lưu tệp; các tệp cũ không còn trên máy sẽ được báo là thiếu và cần tải lên lại. Muốn tăng giới hạn tệp, cập nhật `MAX_FILE_SIZE_MB`. Sao lưu cả MongoDB database (bao gồm các bucket GridFS) và thư mục `backend/uploads/` cho đến khi hoàn tất chuyển đổi.
+Các máy chủ API cần dùng cùng `MONGODB_URI` để chia sẻ tài liệu và tệp GridFS.
 
 ## REST API
 
